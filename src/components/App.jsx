@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+import React, { useState, useEffect } from 'react';
 import css from './App.module.css';
 import { searchImages } from '../api/API';
 import Searchbar from './search-bar/Searchbar';
@@ -9,71 +9,58 @@ import Button from './button/Button';
 import Loader from './loader/Loader';
 import Modal from './modal/Modal';
 
-class App extends Component {
-  state = {
-    items: [],
-    search: null,
-    loading: false,
-    modalActive: false,
-    page: 1,
-    endOfList: false,
-    error: '',
-    modalImageSrc: '',
+const App = () => {
+  const [items, setItems] = useState([]);
+  const [search, setSearch] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [modalActive, setModalActive] = useState(false);
+  const [page, setPage] = useState(1);
+  const [endOfList, setEndOfList] = useState(false);
+  const [modalImageSrc, setModalImageSrc] = useState('');
+
+  const dataCatcher = search => {
+    setSearch(search);
+    setItems([]);
+    setPage(1);
   };
-  dataCatcher = search => {
-    this.setState({
-      search,
-      items: [],
-      page: 1,
-    });
+  const pageUpdate = () => setPage(prevPage => prevPage + 1);
+  const openModal = src => {
+    setModalActive(true);
+    setModalImageSrc(src);
   };
-  pageUpdate = () =>
-    this.setState(({ page }) => ({
-      page: page + 1,
-    }));
-  openModal = src => {
-    this.setState({
-      modalActive: true,
-      modalImageSrc: src,
-    });
+  const closeModal = () => {
+    setModalActive(false);
+    setModalImageSrc('');
   };
-  closeModal = () => {
-    this.setState({ modalActive: false, modalImageSrc: '' });
-  };
-  componentDidUpdate(prevProps, prevState) {
-    const { page, search } = this.state;
-    if (prevState.search !== search || prevState.page !== page) {
-      this.setState({ loading: true });
-      searchImages(search, page)
-        .then(({ hits }) => {
-          this.setState(({ items }) => ({ items: [...items, ...hits] }));
-          if (hits.length < 12) {
-            this.setState({ endOfList: true });
-          }
-        })
-        .catch(erorr => this.setState({ erorr: erorr.message }))
-        .finally(() => this.setState({ loading: false }));
+  useEffect(() => {
+    if (!search) {
+      return;
     }
-  }
-  render() {
-    const { items, loading, endOfList, modalActive, modalImageSrc } =
-      this.state;
-    const { dataCatcher, pageUpdate, openModal, closeModal } = this;
-    return (
-      <div className={css.App}>
-        <Searchbar>
-          <SearchForm submitFn={dataCatcher} />
-        </Searchbar>
-        <ImageGallery>
-          <ImageGalleryItem hits={items} clicked={openModal} />
-        </ImageGallery>
-        {loading && <Loader />}
-        {Boolean(items.length) && !endOfList && (
-          <Button loadMore={pageUpdate} />
-        )}
-        {modalActive && <Modal url={modalImageSrc} close={closeModal} />}
-      </div>
-    );
-  }
-}
+    setLoading(true);
+    searchImages(search, page)
+      .then(({ hits }) => {
+        setItems(prevItems => [...prevItems, ...hits]);
+        if (hits.length < 12) {
+          setEndOfList(true);
+        }
+      })
+      .catch(erorr => console.log(erorr.message))
+      .finally(() => setLoading(false));
+  }, [search, page]);
+
+  return (
+    <div className={css.App}>
+      <Searchbar>
+        <SearchForm submitFn={dataCatcher} />
+      </Searchbar>
+      <ImageGallery>
+        <ImageGalleryItem hits={items} clicked={openModal} />
+      </ImageGallery>
+      {loading && <Loader />}
+      {Boolean(items.length) && !endOfList && <Button loadMore={pageUpdate} />}
+      {modalActive && <Modal url={modalImageSrc} close={closeModal} />}
+    </div>
+  );
+};
+
 export default App;
